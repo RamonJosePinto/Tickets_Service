@@ -1,5 +1,6 @@
 package ese.trab01.Tickets.model;
 
+import ese.trab01.Tickets.model.enums.TicketStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -7,7 +8,10 @@ import lombok.*;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "tickets")
+@Table(name = "tickets", indexes = {
+        @Index(name = "idx_ticket_event", columnList = "eventId"),
+        @Index(name = "idx_ticket_purchaser", columnList = "purchaserEmail")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,20 +23,22 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull
+    @Column(nullable = false)
     private Long eventId;
 
-    @NotBlank
-    @Column(unique = true, length = 64)
-    private String code; // código do ingresso (ex: "ABC123XYZ")
-
-    @NotBlank
-    @Column(length = 32)
-    private String status; // ex: "EMITIDO", "VALIDADO", "CANCELADO"
+    @Column(nullable = false)
+    private Long reservationId;
 
     @Email
     @NotBlank
     private String purchaserEmail;
+
+    @Column(unique = true, length = 64, nullable = false)
+    private String code;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16, nullable = false)
+    private TicketStatus status;
 
     @NotNull
     private OffsetDateTime purchasedAt;
