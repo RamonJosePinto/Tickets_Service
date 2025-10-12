@@ -1,31 +1,43 @@
 package ese.trab01.Tickets.client;
 
-import lombok.Data;
+import ese.trab01.Tickets.commons.StatusEvento;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Value;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 @Component
 public class EventClient {
-    private final RestTemplate rest = new RestTemplate();
-    @Value("${services.events.baseUrl:http://localhost:8081}")
-    String base;
 
-    public EventInfo getEvent(Long eventId) {
-        // TODO trocar por OpenFeign se preferir
-        return rest.getForObject(base + "/events/" + eventId, EventInfo.class);
+    private final RestTemplate restTemplate;
+    private final String baseUrl;
+
+    public EventClient(@Value("${services.events.base-url}") String baseUrl) {
+        this.restTemplate = new RestTemplate();
+        this.baseUrl = baseUrl;
     }
 
-    @Data
+    public EventInfo getEventById(Long eventId) {
+        String url = baseUrl + "/eventos/" + eventId;
+        return restTemplate.getForObject(url, EventInfo.class);
+    }
+
+    // DTO que reflete o EventoRespostaDto do serviço de Eventos
+    @Getter
+    @Setter
     public static class EventInfo {
         private Long id;
-        private String title;
-        private Integer capacity; // capacidade máxima
-        private boolean active;
-        private OffsetDateTime dateTime;
-        private String category;
-        private String place;
+        private String nome;
+        private String descricao;
+        private String localizacao;
+        private LocalDateTime data;
+        private Integer capacidade;
+        private Integer vagas;
+        private StatusEvento status;
+        private Long organizerId;
+
     }
 }
