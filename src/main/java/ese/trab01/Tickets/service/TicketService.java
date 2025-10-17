@@ -1,6 +1,7 @@
 package ese.trab01.Tickets.service;
 
 import ese.trab01.Tickets.client.EventClient;
+import ese.trab01.Tickets.client.NotificationClient;
 import ese.trab01.Tickets.commons.StatusEvento;
 import ese.trab01.Tickets.exception.RecursoNaoEncontradoException;
 import ese.trab01.Tickets.exception.RecursoNaoEncontradoException;
@@ -32,6 +33,7 @@ public class TicketService {
     private final ReservationRepository reservationRepo;
     private final TicketRepository ticketRepo;
     private final EventClient eventClient;
+    private final NotificationClient notificationClient;
 
     @Value("${tickets.hold.minutes:10}")
     private int holdMinutes;
@@ -119,6 +121,17 @@ public class TicketService {
                     .purchasedAt(OffsetDateTime.now())
                     .build();
             ticketRepo.save(t);
+        }
+
+        try {
+            notificationClient.sendPurchaseConfirmation(
+                    r.getPurchaserEmail(),
+                    r.getEventId(),
+                    r.getId(),
+                    r.getQuantity()
+            );
+        } catch (Exception e) {
+            log.warn("Falha ao notificar compra (ignorado para não afetar a confirmação): {}", e.getMessage());
         }
     }
 
