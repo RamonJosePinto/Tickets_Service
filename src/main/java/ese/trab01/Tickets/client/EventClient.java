@@ -24,8 +24,7 @@ public class EventClient {
         String url = baseUrl + "/eventos/" + eventId;
         return restTemplate.getForObject(url, EventInfo.class);
     }
-
-    // DTO que reflete o EventoRespostaDto do serviço de Eventos
+    
     @Getter
     @Setter
     public static class EventInfo {
