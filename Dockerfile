@@ -1,20 +1,19 @@
-# ==== Runtime (simples) ====
-# JRE 17 enxuto
+# ==== Build ====
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /src
+COPY pom.xml .
+RUN mvn -q -DskipTests dependency:go-offline
+COPY . .
+RUN mvn -q -DskipTests package
+
+# ==== Runtime ====
 FROM eclipse-temurin:17-jre-jammy
-
-# pasta de trabalho
 WORKDIR /app
-
-# copia o jar gerado pelo Maven
-# (assume que você já rodou mvn package)
-COPY target/*.jar app.jar
-
-# porta interna padronizada dos serviços
-# (deixe seu Spring com server.port=8080)
-EXPOSE 8080
-
-# permite passar flags de JVM ou propriedades do Spring via ENV
-ENV JAVA_OPTS=""
-
-# sobe o app
-ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar app.jar"]
+RUN useradd -r -u 10001 -g root appuser
+USER appuser
+COPY --from=build /src/target/*-SNAPSHOT.jar /app/app.jar
+EXPOSE 8081
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8" \
+    SPRING_PROFILES_ACTIVE="docker" \
+    SERVER_PORT="8081"
+ENTRYPOINT ["java","-jar","/app/app.jar"]
