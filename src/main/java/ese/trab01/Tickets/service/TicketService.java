@@ -2,15 +2,9 @@ package ese.trab01.Tickets.service;
 
 import ese.trab01.Tickets.client.EventClient;
 import ese.trab01.Tickets.client.NotificationClient;
-import ese.trab01.Tickets.commons.StatusEvento;
-import ese.trab01.Tickets.exception.RecursoNaoEncontradoException;
-import ese.trab01.Tickets.exception.RecursoNaoEncontradoException;
-import ese.trab01.Tickets.model.Reservation;
+import ese.trab01.Tickets.dto.TicketReserveRequestDto;
 import ese.trab01.Tickets.model.Ticket;
-import ese.trab01.Tickets.model.enums.PaymentMethod;
-import ese.trab01.Tickets.model.enums.ReservationStatus;
 import ese.trab01.Tickets.model.enums.TicketStatus;
-import ese.trab01.Tickets.repository.ReservationRepository;
 import ese.trab01.Tickets.repository.TicketRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -19,10 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Slf4j
@@ -30,144 +24,113 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TicketService {
 
-    private final ReservationRepository reservationRepo;
     private final TicketRepository ticketRepo;
     private final EventClient eventClient;
     private final NotificationClient notificationClient;
 
-    @Value("${tickets.hold.minutes:10}")
-    private int holdMinutes;
+    @Value("${tickets.reserve.ttl-minutes:15}")
+    private int reserveTtlMinutes;
 
+    /**
+     * Reserva um ingresso (1 ticket)
+     */
     @Transactional
-    public Reservation reserve(Long eventId, String email, int quantity, PaymentMethod method) {
-        // 1) Buscar evento no serviço de Eventos
-        var event = eventClient.getEventById(eventId);
-        log.info("Evento do serviço de eventos: id={}, status={}, capacidade={}, vagas={}",
-                event.getId(), event.getStatus(), event.getCapacidade(), event.getVagas());
-
-        if (event == null) {
-            throw new EntityNotFoundException("Evento não encontrado");
+    public Ticket reserve(TicketReserveRequestDto req) {
+        EventClient.EventInfo event = eventClient.getEventById(req.getEventId());
+        if (event == null || event.getStatus() == null) {
+            throw new EntityNotFoundException("Evento não encontrado.");
+        }
+        // Regra de capacidade (ajuste conforme sua política: considerar RESERVED também, se quiser)
+        long confirmedCount = ticketRepo.countByEventIdAndStatus(req.getEventId(), TicketStatus.CONFIRMED);
+        if (event.getCapacidade() != null && confirmedCount >= event.getCapacidade()) {
+            throw new IllegalStateException("Evento lotado.");
         }
 
-        // 2) Validar status do evento (espera-se 'ATIVO')
-        var status = event.getStatus();
-        if (status == null || status != StatusEvento.ATIVO) {
-            // mesmo "contrato" de erro que você já usa
-            throw new RecursoNaoEncontradoException("evento não vendendo"); // evento não vendendo
-        }
-
-        // 3) Validar quantidade e capacidade
-        Integer capacidade = event.getCapacidade();
-        if (capacidade == null || capacidade <= 0) {
-            throw new RecursoNaoEncontradoException("capacidade inválida/zerada"); // capacidade inválida/zerada
-        }
-        if (quantity <= 0) {
-            throw new RecursoNaoEncontradoException("Quantidade inválida");
-        }
-
-        // estoque consumido no serviço de ingressos:
-        long paid = reservationRepo.sumByEventAndStatus(eventId, ReservationStatus.PAGO);
-        long reservedActive = reservationRepo.sumActiveByEventAndStatus(eventId, ReservationStatus.RESERVADO);
-        long used = paid + reservedActive;
-
-        // Regra: não ultrapassar a capacidade do evento
-        if (used + quantity > capacidade) {
-            throw new RecursoNaoEncontradoException("sem vagas suficientes"); // sem vagas suficientes
-        }
-
-        Integer vagas = event.getVagas(); // normalmente "restante" do lado do serviço de eventos
-        if (vagas != null && vagas < quantity) {
-            throw new RecursoNaoEncontradoException("sem vagas suficientes"); // sem vagas suficientes (visão do serviço de eventos)
-        }
-
-        // 4) Criar reserva com janela de expiração
-        var now = OffsetDateTime.now();
-        var res = Reservation.builder()
-                .eventId(eventId)
-                .purchaserEmail(email)
-                .quantity(quantity)
-                .status(ReservationStatus.RESERVADO)
-                .method(method)
-                .createdAt(now)
-                .expiresAt(now.plusMinutes(holdMinutes))
+        Ticket ticket = Ticket.builder()
+                .code(UUID.randomUUID().toString())
+                .email(req.getEmail())
+                .eventId(req.getEventId())
+                .status(TicketStatus.RESERVED)
+                .expiresAt(OffsetDateTime.now().plus(reserveTtlMinutes, ChronoUnit.MINUTES))
+                .method(req.getMethod())
                 .build();
 
-        return reservationRepo.save(res);
+        return ticketRepo.save(ticket);
     }
 
+    /**
+     * Confirma (pós-pagamento)
+     */
     @Transactional
-    public void confirmPayment(Long reservationId, String paymentId) {
-        var r = reservationRepo.findById(reservationId)
-                .orElseThrow(() -> new EntityNotFoundException("Reserva não encontrada"));
+    public void confirm(Long ticketId) {
+        Ticket t = ticketRepo.findById(ticketId).orElseThrow(EntityNotFoundException::new);
 
-        if (r.getStatus() != ReservationStatus.RESERVADO) return;
-
-        if (r.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            r.setStatus(ReservationStatus.EXPIRADO);
-            return;
+        if (t.getStatus() == TicketStatus.CANCELED || t.getStatus() == TicketStatus.EXPIRED) {
+            throw new IllegalStateException("Ticket não pode ser confirmado (cancelado/expirado).");
         }
+        if (t.getStatus() == TicketStatus.CONFIRMED) return;
 
-        r.setStatus(ReservationStatus.PAGO);
-        r.setPaymentId(paymentId);
-
-        // Gera N tickets
-        for (int i = 0; i < r.getQuantity(); i++) {
-            var t = Ticket.builder()
-                    .eventId(r.getEventId())
-                    .reservationId(r.getId())
-                    .purchaserEmail(r.getPurchaserEmail())
-                    .code(UUID.randomUUID().toString())
-                    .status(TicketStatus.EMITIDO)
-                    .purchasedAt(OffsetDateTime.now())
-                    .build();
+        if (t.getExpiresAt() != null && OffsetDateTime.now().isAfter(t.getExpiresAt())) {
+            t.setStatus(TicketStatus.EXPIRED);
             ticketRepo.save(t);
+            throw new IllegalStateException("Reserva expirada.");
         }
 
-        try {
-            notificationClient.sendPurchaseConfirmation(
-                    r.getPurchaserEmail(),
-                    r.getEventId(),
-                    r.getId(),
-                    r.getQuantity()
-            );
-        } catch (Exception e) {
-            log.warn("Falha ao notificar compra (ignorado para não afetar a confirmação): {}", e.getMessage());
-        }
+        t.setStatus(TicketStatus.CONFIRMED);
+        t.setConfirmedAt(OffsetDateTime.now());
+        ticketRepo.save(t);
+
+        // notificar (agora com ticketId)
+        notificationClient.sendPurchaseConfirmation(t.getEmail(), t.getEventId(), t.getId(), 1);
     }
 
+    /**
+     * Cancela
+     */
     @Transactional
-    public void cancel(Long reservationId) {
-        var r = reservationRepo.findById(reservationId)
-                .orElseThrow(() -> new EntityNotFoundException("Reserva não encontrada"));
-
-        if (r.getStatus() == ReservationStatus.PAGO) {
-            throw new RecursoNaoEncontradoException("Reserva já paga; emitir estorno no serviço de pagamentos.");
+    public void cancel(Long ticketId) {
+        Ticket t = ticketRepo.findById(ticketId).orElseThrow(EntityNotFoundException::new);
+        if (t.getStatus() == TicketStatus.USED) {
+            throw new IllegalStateException("Ticket já utilizado.");
         }
-        r.setStatus(ReservationStatus.CANCELADO);
+        if (t.getStatus() == TicketStatus.CANCELED || t.getStatus() == TicketStatus.EXPIRED) return;
+
+        t.setStatus(TicketStatus.CANCELED);
+        t.setCanceledAt(OffsetDateTime.now());
+        ticketRepo.save(t);
     }
 
+    /**
+     * Valida uso (ex.: scan no portão). Apenas CONFIRMED -> USED
+     */
     @Transactional
-    public Ticket validate(String code) {
-        var t = ticketRepo.findByCode(code)
-                .orElseThrow(() -> new EntityNotFoundException("Ingresso não encontrado"));
-        if (t.getStatus() == TicketStatus.VALIDADO) {
-            throw new RecursoNaoEncontradoException("Ingresso já validado.");
+    public void validateUse(String code) {
+        Ticket t = ticketRepo.findByCode(code).orElseThrow(EntityNotFoundException::new);
+        if (t.getStatus() != TicketStatus.CONFIRMED) {
+            throw new IllegalStateException("Ticket não está confirmado.");
         }
-        t.setStatus(TicketStatus.VALIDADO);
-        return t;
+        t.setStatus(TicketStatus.USED);
+        t.setUsedAt(OffsetDateTime.now());
+        ticketRepo.save(t);
     }
 
-    public Page<Ticket> listMyTickets(String email, Pageable pageable) {
-        return ticketRepo.findByPurchaserEmail(email, pageable);
-    }
-
-    // Expira reservas pendentes
-    @Scheduled(fixedDelayString = "${tickets.expire.millis:60000}")
+    /**
+     * Expira reservas antigas (job agendado)
+     */
     @Transactional
-    public void expireHolds() {
+    public int expireOldReservations() {
         var now = OffsetDateTime.now();
-        reservationRepo.findAll().stream()
-                .filter(r -> r.getStatus() == ReservationStatus.RESERVADO && r.getExpiresAt().isBefore(now))
-                .forEach(r -> r.setStatus(ReservationStatus.EXPIRADO));
+        var toExpire = ticketRepo.findAll().stream()
+                .filter(t -> t.getStatus() == TicketStatus.RESERVED
+                        && t.getExpiresAt() != null
+                        && now.isAfter(t.getExpiresAt()))
+                .toList();
+        toExpire.forEach(t -> t.setStatus(TicketStatus.EXPIRED));
+        ticketRepo.saveAll(toExpire);
+        return toExpire.size();
+    }
+
+    public Page<Ticket> list(Pageable pageable) {
+        return ticketRepo.findAll(pageable);
     }
 }

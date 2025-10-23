@@ -1,19 +1,18 @@
 package ese.trab01.Tickets.model;
 
+import ese.trab01.Tickets.model.enums.PaymentMethod;
 import ese.trab01.Tickets.model.enums.TicketStatus;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
-@Entity
-@Table(name = "tickets", indexes = {
-        @Index(name = "idx_ticket_event", columnList = "eventId"),
-        @Index(name = "idx_ticket_purchaser", columnList = "purchaserEmail")
-})
 @Getter
 @Setter
+@Entity
+@Table(name = "tickets")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -23,23 +22,32 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Para checagens e QR Code
+    @Column(nullable = false, unique = true, updatable = false)
+    private String code; // UUID aleatório
+
     @Column(nullable = false)
     private Long eventId;
 
     @Column(nullable = false)
-    private Long reservationId;
-
-    @Email
-    @NotBlank
-    private String purchaserEmail;
-
-    @Column(unique = true, length = 64, nullable = false)
-    private String code;
+    private String email; // comprador
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 16, nullable = false)
+    @Column(nullable = false)
     private TicketStatus status;
+    // RESERVED -> CONFIRMED -> USED (via validate)
+    // também CANCELED, EXPIRED
 
-    @NotNull
-    private OffsetDateTime purchasedAt;
+    @Enumerated(EnumType.STRING)
+    private PaymentMethod method; // pode ser null enquanto reservado
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    private OffsetDateTime expiresAt; // janela de reserva (hold)
+
+    private OffsetDateTime confirmedAt;
+    private OffsetDateTime canceledAt;
+    private OffsetDateTime usedAt;
 }

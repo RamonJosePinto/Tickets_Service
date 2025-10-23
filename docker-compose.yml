@@ -10,7 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ticket_service"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d ticket_service" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -37,7 +37,7 @@ services:
       SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
 
       EVENTS_BASE_URL: "http://host.docker.internal:8083"
-      # NOTIFICATIONS_BASE_URL: "http://host.docker.internal:8085"
+      NOTIFICATIONS_BASE_URL: "http://host.docker.internal:8085"
     ports:
       - "8081:8081"
 

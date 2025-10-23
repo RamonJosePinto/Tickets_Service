@@ -1,18 +1,15 @@
 package ese.trab01.Tickets.controller;
 
-
-import ese.trab01.Tickets.dto.ReservaRequisicaoDto;
-import ese.trab01.Tickets.dto.ReservaRespostaDto;
-import ese.trab01.Tickets.model.Reservation;
+import ese.trab01.Tickets.dto.TicketReserveRequestDto;
+import ese.trab01.Tickets.dto.TicketReserveResponseDto;
+import ese.trab01.Tickets.dto.TicketResponseDto;
 import ese.trab01.Tickets.model.Ticket;
-import ese.trab01.Tickets.repository.ReservationRepository;
 import ese.trab01.Tickets.service.TicketService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,45 +19,44 @@ import org.springframework.web.bind.annotation.*;
 public class TicketController {
 
     private final TicketService service;
-    private final ReservationRepository reservationRepo;
 
-    @PostMapping("/reservations")
-    public ResponseEntity<ReservaRespostaDto> reserve(@Valid @RequestBody ReservaRequisicaoDto req) {
-        var res = service.reserve(req.getEventId(), req.getEmail(), req.getQuantity(), req.getMethod());
-        var body = new ReservaRespostaDto(res.getId(), res.getStatus(), res.getExpiresAt());
-        return ResponseEntity.ok(body);
+    @PostMapping("/reserve")
+    public ResponseEntity<TicketReserveResponseDto> reserve(@Valid @RequestBody TicketReserveRequestDto req) {
+        Ticket t = service.reserve(req);
+        return ResponseEntity.status(201).body(
+                new TicketReserveResponseDto(t.getId(), t.getCode(), t.getStatus(), t.getExpiresAt())
+        );
     }
 
-    @PostMapping("/reservations/{id}/confirm")
-    public ResponseEntity<Void> confirm(@PathVariable Long id, @RequestBody ConfirmRequest req) {
-        service.confirmPayment(id, req.paymentId());
-        return ResponseEntity.accepted().build();
-    }
-
-    @PostMapping("/reservations/{id}/cancel")
-    public ResponseEntity<Void> cancel(@PathVariable Long id) {
-        service.cancel(id);
+    @PostMapping("/{ticketId}/confirm")
+    public ResponseEntity<Void> confirm(@PathVariable Long ticketId) {
+        service.confirm(ticketId);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/my")
-    public Page<Ticket> my(@RequestParam String email,
-                           @RequestParam(defaultValue = "0") int page,
-                           @RequestParam(defaultValue = "10") int size) {
-        return service.listMyTickets(email, PageRequest.of(page, size, Sort.by("purchasedAt").descending()));
+    @PostMapping("/{ticketId}/cancel")
+    public ResponseEntity<Void> cancel(@PathVariable Long ticketId) {
+        service.cancel(ticketId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/validate/{code}")
-    public Ticket validate(@PathVariable String code) {
-        return service.validate(code);
+    public ResponseEntity<Void> validate(@PathVariable String code) {
+        service.validateUse(code);
+        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/reservations/{id}")
-    public Reservation getReservation(@PathVariable Long id) {
-        return reservationRepo.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Reserva não encontrada"));
-    }
-
-    public record ConfirmRequest(String paymentId) {
+    @GetMapping
+    public ResponseEntity<Page<TicketResponseDto>> list(Pageable pageable) {
+        var page = service.list(pageable);
+        var dtoPage = new PageImpl<>(
+                page.getContent().stream()
+                        .map(t -> new TicketResponseDto(
+                                t.getId(), t.getCode(), t.getEventId(), t.getEmail(), t.getStatus(),
+                                t.getCreatedAt(), t.getConfirmedAt(), t.getCanceledAt(), t.getUsedAt()))
+                        .toList(),
+                pageable, page.getTotalElements()
+        );
+        return ResponseEntity.ok(dtoPage);
     }
 }
