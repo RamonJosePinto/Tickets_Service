@@ -3,6 +3,7 @@ package ese.trab01.Tickets;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ese.trab01.Tickets.controller.TicketController;
 import ese.trab01.Tickets.dto.TicketReserveRequestDto;
+import ese.trab01.Tickets.dto.TicketReserveResponseDto;
 import ese.trab01.Tickets.model.Ticket;
 import ese.trab01.Tickets.model.enums.PaymentMethod;
 import ese.trab01.Tickets.model.enums.TicketStatus;
@@ -39,24 +40,24 @@ class TicketControllerTest {
     private TicketService service;
 
     @Test
-    void reserve_endpoint_deveRetornar201() throws Exception {
+    void create_deveRetornar201() throws Exception {
         var req = new TicketReserveRequestDto();
         req.setEventId(1L);
-        req.setEmail("ramon@example.com");
+        req.setParticipantId(42L);
         req.setMethod(PaymentMethod.PIX);
 
         var saved = Ticket.builder()
                 .id(123L)
                 .code("CODE-123")
                 .eventId(1L)
-                .email("ramon@example.com")
+                .participantId(42L)
                 .status(TicketStatus.RESERVED)
                 .expiresAt(OffsetDateTime.now().plusMinutes(15))
                 .build();
 
         Mockito.when(service.reserve(any(TicketReserveRequestDto.class))).thenReturn(saved);
 
-        mvc.perform(post("/tickets/reserve")
+        mvc.perform(post("/tickets")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(om.writeValueAsString(req)))
                 .andExpect(status().isCreated())
@@ -66,32 +67,43 @@ class TicketControllerTest {
     }
 
     @Test
-    void confirm_endpoint_deveRetornar204() throws Exception {
+    void confirm_deveRetornar204() throws Exception {
         mvc.perform(post("/tickets/{ticketId}/confirm", 5L))
                 .andExpect(status().isNoContent());
         Mockito.verify(service).confirm(5L);
     }
 
     @Test
-    void cancel_endpoint_deveRetornar204() throws Exception {
+    void cancel_deveRetornar204() throws Exception {
         mvc.perform(post("/tickets/{ticketId}/cancel", 5L))
                 .andExpect(status().isNoContent());
         Mockito.verify(service).cancel(5L);
     }
 
     @Test
-    void validate_endpoint_deveRetornar204() throws Exception {
-        mvc.perform(post("/tickets/validate/{code}", "CODE-1"))
+    void validateUse_deveRetornar204() throws Exception {
+        mvc.perform(post("/tickets/validate/{code}", "CODE-XYZ"))
                 .andExpect(status().isNoContent());
-        Mockito.verify(service).validateUse("CODE-1");
+        Mockito.verify(service).validateUse("CODE-XYZ");
     }
 
     @Test
-    void list_endpoint_deveRetornar200() throws Exception {
+    void list_deveRetornar200() throws Exception {
         Page<Ticket> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
         Mockito.when(service.list(any(PageRequest.class))).thenReturn(page);
 
         mvc.perform(get("/tickets")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void listByParticipant_deveRetornar200() throws Exception {
+        Page<Ticket> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+        Mockito.when(service.listByParticipant(eq(42L), any(PageRequest.class))).thenReturn(page);
+
+        mvc.perform(get("/tickets/by-participant/{participantId}", 42L)
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk());

@@ -12,7 +12,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     Optional<Ticket> findByCode(String code);
 
-    Page<Ticket> findByEmail(String email, Pageable pageable);
+    Page<Ticket> findByParticipantId(Long participantId, Pageable pageable);
 
     long countByEventIdAndStatus(Long eventId, TicketStatus status);
 }

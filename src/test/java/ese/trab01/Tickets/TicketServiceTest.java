@@ -2,18 +2,17 @@ package ese.trab01.Tickets;
 
 import ese.trab01.Tickets.client.EventClient;
 import ese.trab01.Tickets.client.NotificationClient;
-import ese.trab01.Tickets.commons.StatusEvento;
 import ese.trab01.Tickets.dto.TicketReserveRequestDto;
 import ese.trab01.Tickets.model.Ticket;
 import ese.trab01.Tickets.model.enums.PaymentMethod;
 import ese.trab01.Tickets.model.enums.TicketStatus;
 import ese.trab01.Tickets.repository.TicketRepository;
 import ese.trab01.Tickets.service.TicketService;
+import ese.trab01.Tickets.commons.StatusEvento;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -41,10 +40,11 @@ class TicketServiceTest {
 
     @BeforeEach
     void setup() {
-        // no service novo, o TTL veio como reserveTtlMinutes
+        // TTL de reserva usado na criação (seu serviço lê de @Value)
         ReflectionTestUtils.setField(service, "reserveTtlMinutes", 10);
     }
 
+    // helper para criar EventInfo semelhante ao do EventClient
     private EventClient.EventInfo activeEvent(Integer capacidade) {
         var e = new EventClient.EventInfo();
         e.setId(1L);
@@ -54,7 +54,7 @@ class TicketServiceTest {
     }
 
     @Test
-    void reserve_deveCriarTicket_quandoEventoAtivoEComCapacidade() {
+    void create_deveCriarTicket_quandoEventoAtivoEComCapacidade() {
         when(eventClient.getEventById(1L)).thenReturn(activeEvent(10));
         when(ticketRepo.countByEventIdAndStatus(1L, TicketStatus.CONFIRMED)).thenReturn(3L);
         when(ticketRepo.save(any(Ticket.class))).thenAnswer(inv -> {
@@ -66,38 +66,42 @@ class TicketServiceTest {
 
         var req = new TicketReserveRequestDto();
         req.setEventId(1L);
-        req.setEmail("ramon@example.com");
+        req.setParticipantId(42L);
         req.setMethod(PaymentMethod.PIX);
 
         Ticket t = service.reserve(req);
 
         assertNotNull(t.getId());
         assertEquals(TicketStatus.RESERVED, t.getStatus());
+        assertEquals(42L, t.getParticipantId());
         assertNotNull(t.getExpiresAt());
         verify(ticketRepo).save(any(Ticket.class));
     }
 
     @Test
-    void reserve_deveLancarQuandoEventoNaoEncontrado() {
-        when(eventClient.getEventById(99L)).thenReturn(null);
+    void create_deveLancarQuandoEventoNaoEncontrado() {
+        // caso seu client lance exception:
+        when(eventClient.getEventById(99L)).thenThrow(new EntityNotFoundException("not found"));
 
         var req = new TicketReserveRequestDto();
         req.setEventId(99L);
-        req.setEmail("x@x");
-        assertThrows(EntityNotFoundException.class, () -> service.reserve(req));
+        req.setParticipantId(1L);
 
+        assertThrows(EntityNotFoundException.class, () -> service.reserve(req));
         verify(ticketRepo, never()).save(any());
     }
 
     @Test
-    void reserve_deveLancarQuandoCapacidadeEsgotada() {
+    void create_deveLancarQuandoCapacidadeEsgotada() {
         when(eventClient.getEventById(1L)).thenReturn(activeEvent(3));
         when(ticketRepo.countByEventIdAndStatus(1L, TicketStatus.CONFIRMED)).thenReturn(3L);
 
         var req = new TicketReserveRequestDto();
         req.setEventId(1L);
-        req.setEmail("x@x");
+        req.setParticipantId(1L);
+
         assertThrows(IllegalStateException.class, () -> service.reserve(req));
+        verify(ticketRepo, never()).save(any());
     }
 
     @Test
@@ -105,11 +109,10 @@ class TicketServiceTest {
         Ticket t = Ticket.builder()
                 .id(5L)
                 .eventId(1L)
-                .email("ramon@example.com")
+                .participantId(42L)
                 .status(TicketStatus.RESERVED)
                 .expiresAt(OffsetDateTime.now().plusMinutes(5))
                 .build();
-
         when(ticketRepo.findById(5L)).thenReturn(Optional.of(t));
 
         service.confirm(5L);
@@ -117,27 +120,26 @@ class TicketServiceTest {
         assertEquals(TicketStatus.CONFIRMED, t.getStatus());
         assertNotNull(t.getConfirmedAt());
         verify(ticketRepo).save(t);
-        verify(notificationClient).sendPurchaseConfirmation("ramon@example.com", 1L, 5L, 1);
+        verify(notificationClient).sendPurchaseConfirmation(42L, 1L, 5L);
     }
 
     @Test
-    void confirm_deveLancarQuandoReservaExpirada() {
+    void confirm_deveMarcarComoExpirado_quandoPassouDoPrazo() {
         Ticket t = Ticket.builder()
                 .id(6L)
                 .status(TicketStatus.RESERVED)
                 .expiresAt(OffsetDateTime.now().minusMinutes(1))
                 .build();
-
         when(ticketRepo.findById(6L)).thenReturn(Optional.of(t));
-        assertThrows(IllegalStateException.class, () -> service.confirm(6L));
 
+        assertThrows(IllegalStateException.class, () -> service.confirm(6L));
         assertEquals(TicketStatus.EXPIRED, t.getStatus());
         verify(ticketRepo).save(t);
-        verify(notificationClient, never()).sendPurchaseConfirmation(any(), any(), any(), any());
+        verify(notificationClient, never()).sendPurchaseConfirmation(any(), any(), any());
     }
 
     @Test
-    void cancel_deveCancelar_quandoNaoUsado() {
+    void cancel_deveCancelar_quandoReservado() {
         Ticket t = Ticket.builder()
                 .id(7L)
                 .status(TicketStatus.RESERVED)

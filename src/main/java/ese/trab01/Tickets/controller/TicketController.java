@@ -52,7 +52,7 @@ public class TicketController {
         var dtoPage = new PageImpl<>(
                 page.getContent().stream()
                         .map(t -> new TicketResponseDto(
-                                t.getId(), t.getCode(), t.getEventId(), t.getEmail(), t.getStatus(),
+                                t.getId(), t.getCode(), t.getEventId(), t.getParticipantId(), t.getStatus(),
                                 t.getCreatedAt(), t.getConfirmedAt(), t.getCanceledAt(), t.getUsedAt()))
                         .toList(),
                 pageable, page.getTotalElements()

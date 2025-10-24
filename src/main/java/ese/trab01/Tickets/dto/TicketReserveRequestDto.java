@@ -10,10 +10,10 @@ public class TicketReserveRequestDto {
     @Positive
     private Long eventId;
 
-    @NotBlank
-    @Email
-    private String email;
+    @NotNull
+    @Positive
+    private Long participantId;
 
-    // opcional: se já souber o método ao reservar
+
     private PaymentMethod method;
 }

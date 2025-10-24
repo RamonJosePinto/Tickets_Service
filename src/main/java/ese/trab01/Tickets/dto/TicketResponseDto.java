@@ -12,7 +12,7 @@ public class TicketResponseDto {
     private Long id;
     private String code;
     private Long eventId;
-    private String email;
+    private Long participantId;
     private TicketStatus status;
     private OffsetDateTime createdAt;
     private OffsetDateTime confirmedAt;

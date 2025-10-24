@@ -10,8 +10,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.HashMap;
 import java.util.Map;
 
-@Slf4j
 @Component
+@Slf4j
 public class NotificationClient {
 
     private final RestTemplate rest = new RestTemplate();
@@ -19,27 +19,21 @@ public class NotificationClient {
     @Value("${services.notifications.base-url}")
     private String baseUrl;
 
-    public void sendPurchaseConfirmation(String recipientEmail,
-                                         Long eventId,
-                                         Long reservationId,
-                                         Integer quantity) {
-
+    public void sendPurchaseConfirmation(Long participantId, Long eventId, Long ticketId) {
         String url = UriComponentsBuilder.fromHttpUrl(baseUrl)
                 .path("/notifications/purchase-confirmation")
                 .toUriString();
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("email", recipientEmail);
-        body.put("eventId", eventId);
-        body.put("reservationId", reservationId);
-        body.put("quantity", quantity);
+        Map<String, Object> body = Map.of(
+                "participantId", participantId,
+                "eventId", eventId,
+                "ticketId", ticketId
+        );
 
         try {
             rest.postForEntity(url, body, Void.class);
-            log.info("Notification sent to {} for reservation {}", recipientEmail, reservationId);
         } catch (RestClientException ex) {
-            log.warn("Failed to send notification (email={}, reservationId={}): {}",
-                    recipientEmail, reservationId, ex.getMessage());
+            log.warn("Failed to notify: {}", ex.getMessage());
         }
     }
 }

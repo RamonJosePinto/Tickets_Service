@@ -48,7 +48,7 @@ public class TicketService {
 
         Ticket ticket = Ticket.builder()
                 .code(UUID.randomUUID().toString())
-                .email(req.getEmail())
+                .participantId(req.getParticipantId())
                 .eventId(req.getEventId())
                 .status(TicketStatus.RESERVED)
                 .expiresAt(OffsetDateTime.now().plus(reserveTtlMinutes, ChronoUnit.MINUTES))
@@ -80,8 +80,8 @@ public class TicketService {
         t.setConfirmedAt(OffsetDateTime.now());
         ticketRepo.save(t);
 
-        // notificar (agora com ticketId)
-        notificationClient.sendPurchaseConfirmation(t.getEmail(), t.getEventId(), t.getId(), 1);
+
+        notificationClient.sendPurchaseConfirmation(t.getParticipantId(), t.getEventId(), t.getId());
     }
 
     /**
@@ -132,5 +132,9 @@ public class TicketService {
 
     public Page<Ticket> list(Pageable pageable) {
         return ticketRepo.findAll(pageable);
+    }
+
+    public Page<Ticket> listByParticipant(Long participantId, Pageable pageable) {
+        return ticketRepo.findByParticipantId(participantId, pageable);
     }
 }
