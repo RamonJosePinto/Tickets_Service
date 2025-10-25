@@ -65,8 +65,9 @@ class TicketServiceTest {
         });
 
         var req = new TicketReserveRequestDto();
+        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         req.setEventId(1L);
-        req.setParticipantId(42L);
+        req.setParticipantId(ticketId);
         req.setMethod(PaymentMethod.PIX);
 
         Ticket t = service.reserve(req);
@@ -84,8 +85,9 @@ class TicketServiceTest {
         when(eventClient.getEventById(99L)).thenThrow(new EntityNotFoundException("not found"));
 
         var req = new TicketReserveRequestDto();
+        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         req.setEventId(99L);
-        req.setParticipantId(1L);
+        req.setParticipantId(ticketId);
 
         assertThrows(EntityNotFoundException.class, () -> service.reserve(req));
         verify(ticketRepo, never()).save(any());
@@ -97,8 +99,9 @@ class TicketServiceTest {
         when(ticketRepo.countByEventIdAndStatus(1L, TicketStatus.CONFIRMED)).thenReturn(3L);
 
         var req = new TicketReserveRequestDto();
+        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         req.setEventId(1L);
-        req.setParticipantId(1L);
+        req.setParticipantId(ticketId);
 
         assertThrows(IllegalStateException.class, () -> service.reserve(req));
         verify(ticketRepo, never()).save(any());
@@ -106,10 +109,11 @@ class TicketServiceTest {
 
     @Test
     void confirm_deveConfirmarENotificar_quandoValido() {
+        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         Ticket t = Ticket.builder()
                 .id(5L)
                 .eventId(1L)
-                .participantId(42L)
+                .participantId(ticketId)
                 .status(TicketStatus.RESERVED)
                 .expiresAt(OffsetDateTime.now().plusMinutes(5))
                 .build();
@@ -120,7 +124,7 @@ class TicketServiceTest {
         assertEquals(TicketStatus.CONFIRMED, t.getStatus());
         assertNotNull(t.getConfirmedAt());
         verify(ticketRepo).save(t);
-        verify(notificationClient).sendPurchaseConfirmation(42L, 1L, 5L);
+        verify(notificationClient).sendPurchaseConfirmation(ticketId, 1L, 5L);
     }
 
     @Test

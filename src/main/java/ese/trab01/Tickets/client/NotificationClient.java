@@ -9,6 +9,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @Slf4j
@@ -19,7 +20,7 @@ public class NotificationClient {
     @Value("${services.notifications.base-url}")
     private String baseUrl;
 
-    public void sendPurchaseConfirmation(Long participantId, Long eventId, Long ticketId) {
+    public void sendPurchaseConfirmation(UUID participantId, Long eventId, Long ticketId) {
         String url = UriComponentsBuilder.fromHttpUrl(baseUrl)
                 .path("/notifications/purchase-confirmation")
                 .toUriString();
@@ -36,7 +37,8 @@ public class NotificationClient {
             log.warn("Failed to notify: {}", ex.getMessage());
         }
     }
-    public void registrationConfirmation(Long participantId) {
+
+    public void registrationConfirmation(UUID participantId) {
         String url = UriComponentsBuilder.fromHttpUrl(baseUrl)
                 .path("/notifications/registration-confirmation")
                 .toUriString();
@@ -51,7 +53,7 @@ public class NotificationClient {
     }
 
     // tickets-service: client/NotificationClient.java
-    public void sendTicketCanceled(Long participantId, Long eventId, Long ticketId, String reason) {
+    public void sendTicketCanceled(UUID participantId, Long eventId, Long ticketId, String reason) {
         String url = UriComponentsBuilder.fromHttpUrl(baseUrl)
                 .path("/notifications/ticket-canceled")
                 .toUriString();

@@ -4,6 +4,8 @@ import ese.trab01.Tickets.model.enums.PaymentMethod;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class TicketReserveRequestDto {
     @NotNull
@@ -12,7 +14,7 @@ public class TicketReserveRequestDto {
 
     @NotNull
     @Positive
-    private Long participantId;
+    private UUID participantId;
 
 
     private PaymentMethod method;

@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -42,15 +43,16 @@ class TicketControllerTest {
     @Test
     void create_deveRetornar201() throws Exception {
         var req = new TicketReserveRequestDto();
+        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         req.setEventId(1L);
-        req.setParticipantId(42L);
+        req.setParticipantId(ticketId);
         req.setMethod(PaymentMethod.PIX);
 
         var saved = Ticket.builder()
                 .id(123L)
                 .code("CODE-123")
                 .eventId(1L)
-                .participantId(42L)
+                .participantId(ticketId)
                 .status(TicketStatus.RESERVED)
                 .expiresAt(OffsetDateTime.now().plusMinutes(15))
                 .build();
@@ -101,7 +103,9 @@ class TicketControllerTest {
     @Test
     void listByParticipant_deveRetornar200() throws Exception {
         Page<Ticket> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
-        Mockito.when(service.listByParticipant(eq(42L), any(PageRequest.class))).thenReturn(page);
+        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
+        Mockito.when(service.listByParticipant(eq(ticketId), any(PageRequest.class))).thenReturn(page);
 
         mvc.perform(get("/tickets/by-participant/{participantId}", 42L)
                         .param("page", "0")

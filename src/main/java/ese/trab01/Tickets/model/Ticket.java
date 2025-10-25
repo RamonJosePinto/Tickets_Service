@@ -30,7 +30,7 @@ public class Ticket {
     private Long eventId;
 
     @Column(nullable = false)
-    private Long participantId; // comprador
+    private UUID participantId; // comprador
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

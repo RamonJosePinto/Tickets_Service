@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Data
 @AllArgsConstructor
@@ -12,7 +13,7 @@ public class TicketResponseDto {
     private Long id;
     private String code;
     private Long eventId;
-    private Long participantId;
+    private UUID participantId;
     private TicketStatus status;
     private OffsetDateTime createdAt;
     private OffsetDateTime confirmedAt;

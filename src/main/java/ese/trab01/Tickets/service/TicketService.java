@@ -40,7 +40,7 @@ public class TicketService {
         if (event == null || event.getStatus() == null) {
             throw new EntityNotFoundException("Evento não encontrado.");
         }
-        // Regra de capacidade (ajuste conforme sua política: considerar RESERVED também, se quiser)
+        
         long confirmedCount = ticketRepo.countByEventIdAndStatus(req.getEventId(), TicketStatus.CONFIRMED);
         if (event.getCapacidade() != null && confirmedCount >= event.getCapacidade()) {
             throw new IllegalStateException("Evento lotado.");
@@ -136,7 +136,7 @@ public class TicketService {
         return ticketRepo.findAll(pageable);
     }
 
-    public Page<Ticket> listByParticipant(Long participantId, Pageable pageable) {
+    public Page<Ticket> listByParticipant(UUID participantId, Pageable pageable) {
         return ticketRepo.findByParticipantId(participantId, pageable);
     }
 }
