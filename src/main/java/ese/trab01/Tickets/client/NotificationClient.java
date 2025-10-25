@@ -36,4 +36,37 @@ public class NotificationClient {
             log.warn("Failed to notify: {}", ex.getMessage());
         }
     }
+    public void registrationConfirmation(Long participantId) {
+        String url = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path("/notifications/registration-confirmation")
+                .toUriString();
+
+        Map<String, Object> body = Map.of("participantId", participantId);
+        log.info("[mock] Notificação de inscricao registrada");
+        try {
+            rest.postForEntity(url, body, Void.class);
+        } catch (RestClientException ex) {
+            log.warn("Failed to notify: {}", ex.getMessage());
+        }
+    }
+
+    // tickets-service: client/NotificationClient.java
+    public void sendTicketCanceled(Long participantId, Long eventId, Long ticketId, String reason) {
+        String url = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path("/notifications/ticket-canceled")
+                .toUriString();
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("participantId", participantId);
+        body.put("eventId", eventId);
+        body.put("ticketId", ticketId);
+        if (reason != null) body.put("reason", reason);
+
+        try {
+            rest.postForEntity(url, body, Void.class);
+        } catch (RestClientException ex) {
+            log.warn("Failed to notify cancel: {}", ex.getMessage());
+        }
+    }
+
 }

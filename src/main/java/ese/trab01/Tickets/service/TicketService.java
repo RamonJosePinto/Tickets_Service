@@ -55,6 +55,8 @@ public class TicketService {
                 .method(req.getMethod())
                 .build();
 
+        notificationClient.registrationConfirmation(req.getParticipantId());
+
         return ticketRepo.save(ticket);
     }
 
@@ -98,11 +100,11 @@ public class TicketService {
         t.setStatus(TicketStatus.CANCELED);
         t.setCanceledAt(OffsetDateTime.now());
         ticketRepo.save(t);
+
+        notificationClient.sendTicketCanceled(t.getParticipantId(), t.getEventId(), t.getId(), null);
     }
 
-    /**
-     * Valida uso (ex.: scan no portão). Apenas CONFIRMED -> USED
-     */
+
     @Transactional
     public void validateUse(String code) {
         Ticket t = ticketRepo.findByCode(code).orElseThrow(EntityNotFoundException::new);
