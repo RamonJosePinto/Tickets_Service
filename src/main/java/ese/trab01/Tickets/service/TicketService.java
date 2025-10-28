@@ -104,6 +104,23 @@ public class TicketService {
         notificationClient.sendTicketCanceled(t.getParticipantId(), t.getEventId(), t.getId(), null);
     }
 
+    /**
+     * Cancela e atualiza o status com o valor recebido no corpo
+     */
+    @Transactional
+    public void cancel(Long ticketId, TicketStatus newStatus) {
+        Ticket t = ticketRepo.findById(ticketId).orElseThrow(EntityNotFoundException::new);
+        if (t.getStatus() == TicketStatus.USED) {
+            throw new IllegalStateException("Ticket já utilizado.");
+        }
+        if (t.getStatus() == TicketStatus.CANCELED || t.getStatus() == TicketStatus.EXPIRED) return;
+
+        t.setStatus(newStatus);
+        t.setCanceledAt(OffsetDateTime.now());
+        ticketRepo.save(t);
+
+        notificationClient.sendTicketCanceled(t.getParticipantId(), t.getEventId(), t.getId(), null);
+    }
 
     @Transactional
     public void validateUse(String code) {

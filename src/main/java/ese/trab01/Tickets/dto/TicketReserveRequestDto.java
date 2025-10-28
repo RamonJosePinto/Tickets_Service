@@ -13,7 +13,7 @@ public class TicketReserveRequestDto {
     private Long eventId;
 
     @NotNull
-    @Positive
+    //@Positive
     private UUID participantId;
 
 

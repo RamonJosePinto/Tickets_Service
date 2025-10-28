@@ -3,6 +3,7 @@ package ese.trab01.Tickets.controller;
 import ese.trab01.Tickets.dto.TicketReserveRequestDto;
 import ese.trab01.Tickets.dto.TicketReserveResponseDto;
 import ese.trab01.Tickets.dto.TicketResponseDto;
+import ese.trab01.Tickets.dto.TicketCancelRequestDto;
 import ese.trab01.Tickets.model.Ticket;
 import ese.trab01.Tickets.service.TicketService;
 import jakarta.validation.Valid;
@@ -35,8 +36,8 @@ public class TicketController {
     }
 
     @PostMapping("/{ticketId}/cancel")
-    public ResponseEntity<Void> cancel(@PathVariable Long ticketId) {
-        service.cancel(ticketId);
+    public ResponseEntity<Void> cancel(@PathVariable Long ticketId, @Valid @RequestBody TicketCancelRequestDto req) {
+        service.cancel(ticketId, req.getStatus());
         return ResponseEntity.noContent().build();
     }
 
