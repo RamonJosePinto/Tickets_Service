@@ -3,6 +3,7 @@ package ese.trab01.Tickets.client;
 import ese.trab01.Tickets.commons.StatusEvento;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -36,7 +37,7 @@ public class EventClient {
         private Integer capacidade;
         private Integer vagas;
         private StatusEvento status;
-        private Long organizerId;
+        private UUID organizerId;
 
     }
 }
