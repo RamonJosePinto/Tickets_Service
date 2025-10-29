@@ -11,8 +11,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/tickets")
@@ -47,6 +50,19 @@ public class TicketController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/buscar")
+    public ResponseEntity<?> getMeusTickets(
+            Pageable pageable,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @RequestHeader(value = "X-User-Roles", required = false) String rolesCsv
+    ) {
+        if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário não autenticado.");
+        if (!hasRole(rolesCsv, "CLIENTE"))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas CLIENTE pode consultar.");
+
+        return ResponseEntity.ok(service.buscarEventosDoParticipante(userId, pageable));
+    }
+
     @GetMapping
     public ResponseEntity<Page<TicketResponseDto>> list(Pageable pageable) {
         var page = service.list(pageable);
@@ -59,5 +75,13 @@ public class TicketController {
                 pageable, page.getTotalElements()
         );
         return ResponseEntity.ok(dtoPage);
+    }
+
+    private boolean hasRole(String rolesCsv, String role) {
+        if (rolesCsv == null || rolesCsv.isBlank()) return false;
+        for (String r : rolesCsv.split(",")) {
+            if (role.equalsIgnoreCase(r.trim())) return true;
+        }
+        return false;
     }
 }

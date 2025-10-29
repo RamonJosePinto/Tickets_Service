@@ -3,6 +3,7 @@ package ese.trab01.Tickets.service;
 import ese.trab01.Tickets.client.EventClient;
 import ese.trab01.Tickets.client.NotificationClient;
 import ese.trab01.Tickets.dto.TicketReserveRequestDto;
+import ese.trab01.Tickets.dto.TicketResponseDto;
 import ese.trab01.Tickets.model.Ticket;
 import ese.trab01.Tickets.model.enums.TicketStatus;
 import ese.trab01.Tickets.repository.TicketRepository;
@@ -40,7 +41,7 @@ public class TicketService {
         if (event == null || event.getStatus() == null) {
             throw new EntityNotFoundException("Evento não encontrado.");
         }
-        
+
         long confirmedCount = ticketRepo.countByEventIdAndStatus(req.getEventId(), TicketStatus.CONFIRMED);
         if (event.getCapacidade() != null && confirmedCount >= event.getCapacidade()) {
             throw new IllegalStateException("Evento lotado.");
@@ -155,5 +156,24 @@ public class TicketService {
 
     public Page<Ticket> listByParticipant(UUID participantId, Pageable pageable) {
         return ticketRepo.findByParticipantId(participantId, pageable);
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Page<TicketResponseDto> buscarEventosDoParticipante(UUID organizerId, Pageable pageable) {
+        return ticketRepo.findByParticipantId(organizerId, pageable).map(this::paraRespostaDto);
+    }
+
+    private TicketResponseDto paraRespostaDto(Ticket t) {
+        return new TicketResponseDto(
+                t.getId(),
+                t.getCode(),
+                t.getEventId(),
+                t.getParticipantId(),
+                t.getStatus(),
+                t.getCreatedAt(),
+                t.getConfirmedAt(),
+                t.getCanceledAt(),
+                t.getUsedAt()
+        );
     }
 }
