@@ -52,7 +52,6 @@ public class NotificationClient {
         }
     }
 
-    // tickets-service: client/NotificationClient.java
     public void sendTicketCanceled(UUID participantId, Long eventId, Long ticketId, String reason) {
         String url = UriComponentsBuilder.fromHttpUrl(baseUrl)
                 .path("/notifications/ticket-canceled")

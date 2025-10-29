@@ -22,30 +22,27 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Para checagens e QR Code
     @Column(nullable = false, unique = true, updatable = false)
-    private String code; // UUID aleatório
+    private String code;
 
     @Column(nullable = false)
     private Long eventId;
 
     @Column(nullable = false)
-    private UUID participantId; // comprador
+    private UUID participantId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TicketStatus status;
-    // RESERVED -> CONFIRMED -> USED (via validate)
-    // também CANCELED, EXPIRED
 
     @Enumerated(EnumType.STRING)
-    private PaymentMethod method; // pode ser null enquanto reservado
+    private PaymentMethod method;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    private OffsetDateTime expiresAt; // janela de reserva (hold)
+    private OffsetDateTime expiresAt;
 
     private OffsetDateTime confirmedAt;
     private OffsetDateTime canceledAt;

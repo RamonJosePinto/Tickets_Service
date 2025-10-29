@@ -32,9 +32,6 @@ public class TicketService {
     @Value("${tickets.reserve.ttl-minutes:15}")
     private int reserveTtlMinutes;
 
-    /**
-     * Reserva um ingresso (1 ticket)
-     */
     @Transactional
     public Ticket reserve(TicketReserveRequestDto req) {
         EventClient.EventInfo event = eventClient.getEventById(req.getEventId());
@@ -61,9 +58,6 @@ public class TicketService {
         return ticketRepo.save(ticket);
     }
 
-    /**
-     * Confirma (pós-pagamento)
-     */
     @Transactional
     public void confirm(Long ticketId) {
         Ticket t = ticketRepo.findById(ticketId).orElseThrow(EntityNotFoundException::new);
@@ -87,9 +81,6 @@ public class TicketService {
         notificationClient.sendPurchaseConfirmation(t.getParticipantId(), t.getEventId(), t.getId());
     }
 
-    /**
-     * Cancela
-     */
     @Transactional
     public void cancel(Long ticketId) {
         Ticket t = ticketRepo.findById(ticketId).orElseThrow(EntityNotFoundException::new);
@@ -105,9 +96,6 @@ public class TicketService {
         notificationClient.sendTicketCanceled(t.getParticipantId(), t.getEventId(), t.getId(), null);
     }
 
-    /**
-     * Cancela e atualiza o status com o valor recebido no corpo
-     */
     @Transactional
     public void cancel(Long ticketId, TicketStatus newStatus) {
         Ticket t = ticketRepo.findById(ticketId).orElseThrow(EntityNotFoundException::new);
@@ -134,9 +122,6 @@ public class TicketService {
         ticketRepo.save(t);
     }
 
-    /**
-     * Expira reservas antigas (job agendado)
-     */
     @Transactional
     public int expireOldReservations() {
         var now = OffsetDateTime.now();
