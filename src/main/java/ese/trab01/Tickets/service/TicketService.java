@@ -159,7 +159,7 @@ public class TicketService {
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public Page<TicketResponseDto> buscarEventosDoParticipante(UUID organizerId, Pageable pageable) {
+    public Page<TicketResponseDto> buscarTicketsDoParticipante(UUID organizerId, Pageable pageable) {
         return ticketRepo.findByParticipantId(organizerId, pageable).map(this::paraRespostaDto);
     }
 

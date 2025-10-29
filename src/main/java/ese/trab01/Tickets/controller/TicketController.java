@@ -60,7 +60,7 @@ public class TicketController {
         if (!hasRole(rolesCsv, "CLIENTE"))
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas CLIENTE pode consultar.");
 
-        return ResponseEntity.ok(service.buscarEventosDoParticipante(userId, pageable));
+        return ResponseEntity.ok(service.buscarTicketsDoParticipante(userId, pageable));
     }
 
     @GetMapping
