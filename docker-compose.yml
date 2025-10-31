@@ -6,7 +6,8 @@ services:
       POSTGRES_DB: ticket_service
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 40022120
-
+    ports:
+      - "5431:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -38,6 +39,7 @@ services:
 
       EVENTS_BASE_URL: "http://host.docker.internal:8083"
       NOTIFICATIONS_BASE_URL: "http://host.docker.internal:8085"
+      PAYMENT_BASE_URL: "http://host.docker.internal:8087"
     ports:
       - "8081:8081"
 

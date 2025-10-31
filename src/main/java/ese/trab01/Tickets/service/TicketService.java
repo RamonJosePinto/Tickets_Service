@@ -1,7 +1,6 @@
 package ese.trab01.Tickets.service;
 
-import ese.trab01.Tickets.client.EventClient;
-import ese.trab01.Tickets.client.NotificationClient;
+import ese.trab01.Tickets.client.*;
 import ese.trab01.Tickets.dto.TicketReserveRequestDto;
 import ese.trab01.Tickets.dto.TicketResponseDto;
 import ese.trab01.Tickets.model.Ticket;
@@ -28,6 +27,7 @@ public class TicketService {
     private final TicketRepository ticketRepo;
     private final EventClient eventClient;
     private final NotificationClient notificationClient;
+    private final PaymentClient paymentClient;
 
     @Value("${tickets.reserve.ttl-minutes:15}")
     private int reserveTtlMinutes;
@@ -53,6 +53,13 @@ public class TicketService {
                 .method(req.getMethod())
                 .build();
 
+        try {
+            paymentClient.createBilling(ticket);
+        } catch (Exception ex) {
+            log.warn("Failed to create billing for ticket reservation: {}", ex.getMessage());
+            ex.printStackTrace();
+        }
+        
         notificationClient.registrationConfirmation(req.getParticipantId());
 
         return ticketRepo.save(ticket);
