@@ -40,7 +40,6 @@ class TicketServiceTest {
 
     @BeforeEach
     void setup() {
-        // TTL de reserva usado na criação (seu serviço lê de @Value)
         ReflectionTestUtils.setField(service, "reserveTtlMinutes", 10);
     }
 
@@ -54,7 +53,7 @@ class TicketServiceTest {
     }
 
     @Test
-    void create_deveCriarTicket_quandoEventoAtivoEComCapacidade() {
+    void reserve_ShouldCreateTicket_WhenEventActiveAndHasCapacity() {
         when(eventClient.getEventById(1L)).thenReturn(activeEvent(10));
         when(ticketRepo.countByEventIdAndStatus(1L, TicketStatus.CONFIRMED)).thenReturn(3L);
         when(ticketRepo.save(any(Ticket.class))).thenAnswer(inv -> {
@@ -65,55 +64,55 @@ class TicketServiceTest {
         });
 
         var req = new TicketReserveRequestDto();
-        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        UUID participantId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         req.setEventId(1L);
-        req.setParticipantId(ticketId);
+        req.setParticipantId(participantId);
         req.setMethod(PaymentMethod.PIX);
 
         Ticket t = service.reserve(req);
 
         assertNotNull(t.getId());
         assertEquals(TicketStatus.RESERVED, t.getStatus());
-        assertEquals(42L, t.getParticipantId());
+        assertEquals(participantId, t.getParticipantId());
         assertNotNull(t.getExpiresAt());
         verify(ticketRepo).save(any(Ticket.class));
     }
 
     @Test
-    void create_deveLancarQuandoEventoNaoEncontrado() {
+    void reserve_ShouldThrow_WhenEventNotFound() {
         // caso seu client lance exception:
         when(eventClient.getEventById(99L)).thenThrow(new EntityNotFoundException("not found"));
 
         var req = new TicketReserveRequestDto();
-        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        UUID participantId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         req.setEventId(99L);
-        req.setParticipantId(ticketId);
+        req.setParticipantId(participantId);
 
         assertThrows(EntityNotFoundException.class, () -> service.reserve(req));
         verify(ticketRepo, never()).save(any());
     }
 
     @Test
-    void create_deveLancarQuandoCapacidadeEsgotada() {
+    void reserve_ShouldThrow_WhenCapacityFull() {
         when(eventClient.getEventById(1L)).thenReturn(activeEvent(3));
         when(ticketRepo.countByEventIdAndStatus(1L, TicketStatus.CONFIRMED)).thenReturn(3L);
 
         var req = new TicketReserveRequestDto();
-        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        UUID participantId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         req.setEventId(1L);
-        req.setParticipantId(ticketId);
+        req.setParticipantId(participantId);
 
         assertThrows(IllegalStateException.class, () -> service.reserve(req));
         verify(ticketRepo, never()).save(any());
     }
 
     @Test
-    void confirm_deveConfirmarENotificar_quandoValido() {
-        UUID ticketId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+    void confirm_ShouldConfirmAndNotify_WhenValid() {
+        UUID participantId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         Ticket t = Ticket.builder()
                 .id(5L)
                 .eventId(1L)
-                .participantId(ticketId)
+                .participantId(participantId)
                 .status(TicketStatus.RESERVED)
                 .expiresAt(OffsetDateTime.now().plusMinutes(5))
                 .build();
@@ -124,11 +123,11 @@ class TicketServiceTest {
         assertEquals(TicketStatus.CONFIRMED, t.getStatus());
         assertNotNull(t.getConfirmedAt());
         verify(ticketRepo).save(t);
-        verify(notificationClient).sendPurchaseConfirmation(ticketId, 1L, 5L);
+        verify(notificationClient).sendPurchaseConfirmation(participantId, 1L, 5L);
     }
 
     @Test
-    void confirm_deveMarcarComoExpirado_quandoPassouDoPrazo() {
+    void confirm_ShouldSetExpired_WhenExpired() {
         Ticket t = Ticket.builder()
                 .id(6L)
                 .status(TicketStatus.RESERVED)
@@ -143,7 +142,7 @@ class TicketServiceTest {
     }
 
     @Test
-    void cancel_deveCancelar_quandoReservado() {
+    void cancel_ShouldCancel_WhenReserved() {
         Ticket t = Ticket.builder()
                 .id(7L)
                 .status(TicketStatus.RESERVED)
@@ -158,7 +157,7 @@ class TicketServiceTest {
     }
 
     @Test
-    void cancel_deveFalharSeJaUsado() {
+    void cancel_ShouldThrow_WhenAlreadyUsed() {
         Ticket t = Ticket.builder()
                 .id(8L)
                 .status(TicketStatus.USED)
@@ -170,7 +169,7 @@ class TicketServiceTest {
     }
 
     @Test
-    void validateUse_deveMarcarComoUSED_quandoConfirmado() {
+    void validateUse_ShouldMarkUsed_WhenConfirmed() {
         Ticket t = Ticket.builder()
                 .id(9L)
                 .code("ABC")
@@ -186,15 +185,15 @@ class TicketServiceTest {
     }
 
     @Test
-    void validateUse_deveFalharSeNaoConfirmado() {
+    void validateUse_ShouldThrow_WhenNotConfirmed() {
         Ticket t = Ticket.builder()
                 .id(10L)
-                .code("DEF")
+                .code("ABC")
                 .status(TicketStatus.RESERVED)
                 .build();
-        when(ticketRepo.findByCode("DEF")).thenReturn(Optional.of(t));
+        when(ticketRepo.findByCode("ABC")).thenReturn(Optional.of(t));
 
-        assertThrows(IllegalStateException.class, () -> service.validateUse("DEF"));
+        assertThrows(IllegalStateException.class, () -> service.validateUse("ABC"));
         verify(ticketRepo, never()).save(any());
     }
 }
