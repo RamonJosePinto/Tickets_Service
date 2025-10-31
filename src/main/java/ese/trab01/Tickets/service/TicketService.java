@@ -52,17 +52,20 @@ public class TicketService {
                 .expiresAt(OffsetDateTime.now().plus(reserveTtlMinutes, ChronoUnit.MINUTES))
                 .method(req.getMethod())
                 .build();
+        
+        notificationClient.registrationConfirmation(req.getParticipantId());
+
+        Ticket newTicket = ticketRepo.save(ticket);
 
         try {
+            ticket.setId(newTicket.getId());
             paymentClient.createBilling(ticket);
         } catch (Exception ex) {
             log.warn("Failed to create billing for ticket reservation: {}", ex.getMessage());
             ex.printStackTrace();
         }
-        
-        notificationClient.registrationConfirmation(req.getParticipantId());
 
-        return ticketRepo.save(ticket);
+        return newTicket;
     }
 
     @Transactional

@@ -29,7 +29,7 @@ public class PaymentClient {
         log.info("Due date test :: " + dueDate);
 
         Map<String, Object> body = Map.of(
-                "ticketId", ticket.getCode(),
+                "ticketId", ticket.getId().toString(),
                 "value",10.00f, // ticket.getValue(),
                 "status", "PENDING",
                 "dueDate", dueDate //dueDate
